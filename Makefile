@@ -1,9 +1,8 @@
 CC = gcc
 LINKER = gcc
-CFLAGS = -Wno-deprecated
-LFLAGS = -framework OpenGL -framework GLUT
+CFLAGS = -Wno-deprecated $(shell pkg-config --cflags sdl) -O3
+LFLAGS = $(shell pkg-config --libs sdl -ldl)
 TARGET = demo3d
-
 SRCDIR = src
 OBJDIR = obj
 

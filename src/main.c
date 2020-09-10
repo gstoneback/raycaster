@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <GLUT/glut.h>
+//#include <GLUT/glut.h>
+#include "SDL_opengl.h"
+#define SCR_W 320
+#define SCR_H 200
 float player_speed;
 float px, py, pdx, pdy, pa; //player position and angle
+float fov, raySpacing;
 int mapW = 8; int mapH = 8; int mapS = 64;
 int map[] = {
   1, 1, 1, 1, 1, 1, 1, 1,
@@ -21,6 +25,11 @@ void drawPlayer() {
   glBegin(GL_POINTS);
   glVertex2i(px, py);
   glEnd();
+  glLineWidth(3);
+  glBegin(GL_LINES);
+  glVertex2i(px, py);
+  glVertex2i(px + pdx * 2, py + pdy * 2);
+  glEnd();
 }
 
 float dist (float ax, float ay, float bx, float by, float ang) {
@@ -28,19 +37,22 @@ float dist (float ax, float ay, float bx, float by, float ang) {
 }
 
 void drawRays() {
-  int r, mx, my, mp, dof;
-  float rx, ry, ra, xo, yo;
+  int col, mx, my, mp, dof;
+  float rx, ry, ra, xo, yo, ca;
   float disH, hx, hy;
   float disV, vx, vy;
+  float disT, lineH;
   float aTan, nTan;
-  ra = pa;
-  for (r = 0; r < 1; ++r) {
+  ra = pa - fov / 2;
+  if (ra < 0) ra += 2 * M_PI;
+
+  for (col = 0; col < SCR_W; ++col) {
     //check horizontal intersections
     dof = 0;
-    disH = 65535; hx = px; hy = py;
+    disH = 1000000; hx = px; hy = py;
     aTan = -1/tanf(ra);
     if (ra > M_PI) { //looking up
-      ry = (((int)py>>6)<<6);
+      ry = (((int)py>>6)<<6) - 0.0001;
       rx = (py - ry) * aTan + px;
       yo = -64;
       xo = -yo * aTan;
@@ -49,14 +61,15 @@ void drawRays() {
       rx = (py - ry) * aTan + px;
       yo = 64;
       xo = -yo * aTan;
-    } else { //looking directly to the left or right
+    }
+    if (ra == 0 || ra == M_PI) { //looking directly to the left or right
       rx = px;
       ry = py;
       dof = 8;
     }
     while (dof < 8) {
-      mx = (int)rx >> 6;
-      my = (int)ry >> 6;
+      mx = (int)(rx) >> 6;
+      my = (int)(ry) >> 6;
       mp = my * mapW + mx;
       if (mp > 0 && mp < mapW * mapH && map[mp]) {
         hx = rx; hy = ry;
@@ -68,18 +81,12 @@ void drawRays() {
         dof += 1;
       }
     }
-    glColor3f(0, 1, 0);
-    glLineWidth(1);
-    glBegin(GL_LINES);
-    glVertex2i(px, py);
-    glVertex2i(rx, ry);
-    glEnd();
     //check vertical intersections
     dof = 0;
-    disV = 65535; vx = px; vy = py;
+    disV = 1000000; vx = px; vy = py;
     nTan = -tanf(ra);
     if (ra > M_PI / 2 && ra < 1.5 * M_PI) { //looking left
-      rx = (((int)px>>6)<<6);
+      rx = (((int)px>>6)<<6) - 0.0001;
       ry = (px - rx) * nTan + py;
       xo = -64;
       yo = -xo * nTan;
@@ -88,7 +95,8 @@ void drawRays() {
       ry = (px - rx) * nTan + py;
       xo = 64;
       yo = -xo * nTan;
-    } else { //looking directly up or down
+    }
+    if (ra == 0 || ra == M_PI) { //looking directly up or down
       rx = px;
       ry = py;
       dof = 8;
@@ -107,6 +115,39 @@ void drawRays() {
         dof += 1;
       }
     }
+    if (disV > disH) {
+      rx = hx;
+      ry = hy;
+      disT = disH;
+      glColor3f(1, 1, 1);
+    } else {
+      rx = vx;
+      ry = vy;
+      disT = disV;
+      glColor3f(0.8, 0.8, 0.8);
+    }
+    /*
+    glLineWidth(3);
+    glBegin(GL_LINES);
+    glVertex2i(px, py);
+    glVertex2i(rx, ry);
+    glEnd();
+    */
+    //draw walls
+    ca = pa - ra;
+    if (ca < 0) ca += 2 * M_PI;
+    if (ca >= 2 * M_PI) ca -= 2 * M_PI;
+    disT *= cosf(ca);
+    lineH = (mapS * SCR_H)/disT;
+    if (lineH > SCR_H) lineH = SCR_H;
+    glLineWidth(glutGet(GLUT_SCREEN_WIDTH) / SCR_W);
+    glBegin(GL_LINES);
+    glVertex2i(col, (SCR_H - lineH) / 2);
+    glVertex2i(col, (SCR_H + lineH) / 2);
+    glEnd();
+    //increment ray angle
+    ra += raySpacing;
+    if (ra > 2 * M_PI) ra -= 2 * M_PI;
   }
 }
 
@@ -128,8 +169,9 @@ void drawMap2D() {
 
 void display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  drawMap2D();
-  drawPlayer();
+  //drawMap2D();
+  drawRays();
+  //drawPlayer();
   glutSwapBuffers();
 }
 
@@ -146,15 +188,16 @@ void handleKey(unsigned char key, int x, int y) {
     pdx = cosf(pa) * player_speed;
     pdy = sinf(pa) * player_speed;
   }
-  if (key == 'w') { px += pdx; py += pdy };
-  if (key == 's') { px -= pdx; py -= pdy };
+  if (key == 'w') { px += pdx; py += pdy; }
+  if (key == 's') { px -= pdx; py -= pdy; }
   glutPostRedisplay();
 }
 
 void init() {
   glClearColor(0.3, 0.3, 0.3, 0);
-  gluOrtho2D(0, 1024, 512, 0);
-  px = 300; py = 300; pa = 0;
+  gluOrtho2D(0, SCR_W, SCR_H, 0);
+  fov = M_PI / 3; raySpacing = fov / SCR_W;
+  px = 100; py = 100; pa = 0;
   pdx = cosf(pa) * player_speed; pdy = sinf(pa) * player_speed;
   player_speed = 5;
 }
@@ -162,7 +205,7 @@ void init() {
 int main(int argc, char** argv) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-  glutInitWindowSize(320, 200);
+  glutInitWindowSize(SCR_W, SCR_H);
   glutCreateWindow("DEMO 3D");
   init();
   glutDisplayFunc(display);
