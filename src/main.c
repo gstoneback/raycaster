@@ -33,11 +33,73 @@ void drawRays() {
     float aTan = -1/tan(ra);
     if (ra > M_PI) { //looking up
       ry = (((int)py>>6)<<6);
-      rx = (py - ry) * aTan+px;
+      rx = (py - ry) * aTan + px;
       yo = -64;
-      xo = -yo*aTan;
+      xo = -yo * aTan;
+    } else if (ra < M_PI) { //looking down
+      ry = (((int)py>>6)<<6) + 64;
+      rx = (py - ry) * aTan + px;
+      yo = 64;
+      xo = -yo * aTan;
+    } else { //looking directly to the left or right
+      rx = px;
+      ry = py;
+      dof = 8;
     }
-    
+    while (dof < 8) {
+      mx = (int)rx >> 6;
+      my = (int)ry >> 6;
+      mp = my * mapW + mx;
+      if (mp > 0 && mp < mapW * mapH && map[mp]) {
+        dof = 8; //hit wall
+      } else {
+        rx += xo;
+        ry += yo;
+        dof += 1;
+      }
+    }
+    glColor3f(0, 1, 0);
+    glLineWidth(1);
+    glBegin(GL_LINES);
+    glVertex2i(px, py);
+    glVertex2i(rx, ry);
+    glEnd();
+    //check vertical intersections
+    dof = 0;
+    float nTan = -tan(ra);
+    if (ra > M_PI / 2 && ra < 1.5 * M_PI) { //looking left
+      rx = (((int)px>>6)<<6);
+      ry = (px - rx) * nTan + py;
+      xo = -64;
+      yo = -xo * nTan;
+    } else if (ra < M_PI / 2 || ra > 1.5 * M_PI) { //looking right
+      rx = (((int)px>>6)<<6) + 64;
+      ry = (px - rx) * nTan + py;
+      xo = 64;
+      yo = -xo * nTan;
+    } else { //looking directly up or down
+      rx = px;
+      ry = py;
+      dof = 8;
+    }
+    while (dof < 8) {
+      mx = (int)rx >> 6;
+      my = (int)ry >> 6;
+      mp = my * mapW + mx;
+      if (mp > 0 && mp < mapW * mapH && map[mp]) {
+        dof = 8; //hit wall
+      } else {
+        rx += xo;
+        ry += yo;
+        dof += 1;
+      }
+    }
+    glColor3f(1, 0, 0);
+    glLineWidth(1);
+    glBegin(GL_LINES);
+    glVertex2i(px, py);
+    glVertex2i(rx, ry);
+    glEnd();
   }
 }
 
