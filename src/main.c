@@ -23,14 +23,22 @@ void drawPlayer() {
   glEnd();
 }
 
+float dist (float ax, float ay, float bx, float by, float ang) {
+  return (sqrtf((bx - ax) * (bx - ax) + (by - ay) * (by - ay)));
+}
+
 void drawRays() {
   int r, mx, my, mp, dof;
   float rx, ry, ra, xo, yo;
+  float disH, hx, hy;
+  float disV, vx, vy;
+  float aTan, nTan;
   ra = pa;
   for (r = 0; r < 1; ++r) {
     //check horizontal intersections
     dof = 0;
-    float aTan = -1/tan(ra);
+    disH = 65535; hx = px; hy = py;
+    aTan = -1/tanf(ra);
     if (ra > M_PI) { //looking up
       ry = (((int)py>>6)<<6);
       rx = (py - ry) * aTan + px;
@@ -51,6 +59,8 @@ void drawRays() {
       my = (int)ry >> 6;
       mp = my * mapW + mx;
       if (mp > 0 && mp < mapW * mapH && map[mp]) {
+        hx = rx; hy = ry;
+        disH = dist(px, py, hx, hy, ra);
         dof = 8; //hit wall
       } else {
         rx += xo;
@@ -66,7 +76,8 @@ void drawRays() {
     glEnd();
     //check vertical intersections
     dof = 0;
-    float nTan = -tan(ra);
+    disV = 65535; vx = px; vy = py;
+    nTan = -tanf(ra);
     if (ra > M_PI / 2 && ra < 1.5 * M_PI) { //looking left
       rx = (((int)px>>6)<<6);
       ry = (px - rx) * nTan + py;
@@ -87,6 +98,8 @@ void drawRays() {
       my = (int)ry >> 6;
       mp = my * mapW + mx;
       if (mp > 0 && mp < mapW * mapH && map[mp]) {
+        vx = rx; vy = ry;
+        disV = dist(px, py, vx, vy, ra);
         dof = 8; //hit wall
       } else {
         rx += xo;
@@ -94,12 +107,6 @@ void drawRays() {
         dof += 1;
       }
     }
-    glColor3f(1, 0, 0);
-    glLineWidth(1);
-    glBegin(GL_LINES);
-    glVertex2i(px, py);
-    glVertex2i(rx, ry);
-    glEnd();
   }
 }
 
