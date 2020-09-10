@@ -23,6 +23,24 @@ void drawPlayer() {
   glEnd();
 }
 
+void drawRays() {
+  int r, mx, my, mp, dof;
+  float rx, ry, ra, xo, yo;
+  ra = pa;
+  for (r = 0; r < 1; ++r) {
+    //check horizontal intersections
+    dof = 0;
+    float aTan = -1/tan(ra);
+    if (ra > M_PI) { //looking up
+      ry = (((int)py>>6)<<6);
+      rx = (py - ry) * aTan+px;
+      yo = -64;
+      xo = -yo*aTan;
+    }
+    
+  }
+}
+
 void drawMap2D() {
   int x, y, xo, yo;
   for (y = 0; y < mapH; ++y) {
@@ -68,6 +86,7 @@ void init() {
   glClearColor(0.3, 0.3, 0.3, 0);
   gluOrtho2D(0, 1024, 512, 0);
   px = 300; py = 300; pa = 0;
+  pdx = cosf(pa) * player_speed; pdy = sinf(pa) * player_speed;
   player_speed = 5;
 }
 
